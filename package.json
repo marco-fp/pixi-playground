@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "webpack --config webpack.config.js",
+    "cleanup": "cd dist && rm game*.js",
+    "build": "npm run cleanup && webpack --config webpack.config.js",
     "serve": "cd ./dist && http-server"
   },
   "repository": {

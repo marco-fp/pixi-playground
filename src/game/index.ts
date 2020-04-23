@@ -1,4 +1,8 @@
 import * as PIXI from "pixi.js";
+import { lookup } from "dns";
+
+const { Sprite, Application } = PIXI;
+const { TextureCache } = PIXI.utils;
 
 // Max is exclusive, min is inclusive
 function randomInt(min: number, max: number) {
@@ -9,54 +13,53 @@ function randomInt(min: number, max: number) {
 
 export class Game {
   private app: PIXI.Application;
+  private sprites: { [name: string]: PIXI.Sprite };
 
   public constructor() {
-    this.app = new PIXI.Application({
-      width: 512,
-      height: 512,
+    this.app = new Application({
+      width: window.innerWidth,
+      height: window.innerHeight,
       antialias: true,
       resolution: 1,
     });
 
-    document.body.appendChild(this.app.view);
+    this.sprites = {};
 
     this.app.renderer.view.style.position = "absolute";
     this.app.renderer.view.style.display = "block";
-    this.app.renderer.resize(window.innerWidth, window.innerHeight);
+
+    document.body.appendChild(this.app.view);
+
+    // this.app.renderer.resize(window.innerWidth, window.innerHeight);
 
     this.app.loader.add("assets/treasureHunter.json");
-    this.app.loader.on("complete", this.onLoadComplete.bind(this));
+    this.app.loader.on("complete", this.onLoadComplete);
     this.app.loader.load();
   }
 
-  private onLoadComplete(
-    _: PIXI.Loader,
-    resources: PIXI.IResourceDictionary
-  ): void {
-    console.log({ resources });
+  addSpriteFromTextureCache = (name: string): PIXI.Sprite => {
+    const sprite = new Sprite(TextureCache[name]);
+    this.sprites[name] = sprite;
+
+    return sprite;
+  };
+
+  onLoadComplete = (_: PIXI.Loader, resources: PIXI.IResourceDictionary) => {
     //There are 3 ways to make sprites from textures atlas frames
 
     //1. Access the `TextureCache` directly
-    const dungeonTexture = PIXI.utils.TextureCache["dungeon.png"];
-    const dungeon = new PIXI.Sprite(dungeonTexture);
+    const dungeonTexture = TextureCache["dungeon.png"];
+    const dungeon = new Sprite(dungeonTexture);
     this.app.stage.addChild(dungeon);
 
-    //2. Access the texture using throuhg the loader's `resources`:
-    const explorer = new PIXI.Sprite(
-      resources["assets/treasureHunter.json"].textures["explorer.png"]
-    );
+    const explorer = this.addSpriteFromTextureCache("explorer.png");
     explorer.x = 68;
 
     //Center the explorer vertically
     explorer.y = this.app.stage.height / 2 - explorer.height / 2;
     this.app.stage.addChild(explorer);
 
-    //3. Create an optional alias called `id` for all the texture atlas
-    //frame id textures.
-    const id = this.app.loader.resources["assets/treasureHunter.json"].textures;
-
-    //Make the treasure box using the alias
-    const treasure = new PIXI.Sprite(id["treasure.png"]);
+    const treasure = this.addSpriteFromTextureCache("treasure.png");
     this.app.stage.addChild(treasure);
 
     //Position the treasure next to the right edge of the canvas
@@ -65,7 +68,7 @@ export class Game {
     this.app.stage.addChild(treasure);
 
     //Make the exit door
-    const door = new PIXI.Sprite(id["door.png"]);
+    const door = this.addSpriteFromTextureCache("door.png");
     door.position.set(32, 0);
     this.app.stage.addChild(door);
 
@@ -77,7 +80,7 @@ export class Game {
     //Make as many blobs as there are `numberOfBlobs`
     for (let i = 0; i < numberOfBlobs; i++) {
       //Make a blob
-      const blob = new PIXI.Sprite(id["blob.png"]);
+      const blob = new Sprite(TextureCache["blob.png"]);
 
       //Space each blob horizontally according to the `spacing` value.
       //`xOffset` determines the point from the left of the screen
@@ -86,7 +89,7 @@ export class Game {
 
       //Give the blob a random y position
       //(`randomInt` is a custom function - see below)
-      const y = randomInt(0, this.app.stage.height - blob.height);
+      const y = randomInt(blob.height, this.app.stage.height - blob.height);
 
       //Set the blob's position
       blob.x = x;
@@ -95,5 +98,13 @@ export class Game {
       //Add the blob sprite to the stage
       this.app.stage.addChild(blob);
     }
-  }
+
+    console.log(this.app.stage);
+
+    this.app.ticker.add(this.gameLoop);
+  };
+
+  gameLoop = (_: number) => {
+    this.sprites["explorer.png"].x += 1;
+  };
 }
